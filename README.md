@@ -139,11 +139,17 @@ The diagram below shows how the GPIO pins are connected to the 16 interrupt line
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "main.h"
 #include"stdbool.h"
+#include "stdio.h"
 bool IRSENSOR;
 void IRPAIR();
 static void MX_GPIO_Init(void);
+//#if defined(__ICCARM__) || defined(__ARMCC_VERSION)
+//#define PUTCHAR_PROTOTYPE int fputc(int ch,FILE *f)
+#if defined(__GNUC__)
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#endif
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -156,7 +162,6 @@ static void MX_GPIO_Init(void);
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -165,6 +170,7 @@ static void MX_GPIO_Init(void);
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
@@ -173,6 +179,7 @@ static void MX_GPIO_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -188,7 +195,6 @@ static void MX_GPIO_Init(void);
   */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -211,6 +217,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -218,29 +225,35 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-  {
-    /* USER CODE END WHILE */
-	 IRPAIR();
-    /* USER CODE BEGIN 3 */
+    {
+  	  IRPAIR();
+    }
+    /* USER CODE END 3 */
   }
-  /* USER CODE END 3 */
-}
-void IRPAIR()
-{
-IRSENSOR = HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_4);
-if(IRSENSOR==0)
-{
-HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
-HAL_Delay(1000);
-HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
-HAL_Delay(1000);
-}
-else
-{
-HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
-HAL_Delay(1000);
-}
-}
+  void IRPAIR()
+  {
+  IRSENSOR = HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_4);
+  if(IRSENSOR==0)
+  {
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
+  	printf("Obstacle Detected\n");
+  HAL_Delay(1000);
+  //HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+  //HAL_Delay(1000);
+  }
+  else
+  {
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+  	printf("Obstacle Not Detected\n");
+  HAL_Delay(1000);
+  }
+  }
+  PUTCHAR_PROTOTYPE
+  {
+  HAL_UART_Transmit(&huart2,(uint8_t*)&ch,1,0xFFFF);
+  return ch;
+  }
+
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -253,8 +266,7 @@ void SystemClock_Config(void)
   /** Configure the main internal regulator output voltage
   */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
-
-  /** Initializes the CPU, AHB and APB buses clocks
+  /** Initializes the CPU, AHB and APB busses clocks
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
@@ -265,7 +277,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
   /** Configure the SYSCLKSource, HCLK, PCLK1 and PCLK2 clocks dividers
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK3|RCC_CLOCKTYPE_HCLK
@@ -284,6 +295,54 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart2, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart2, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -291,12 +350,10 @@ void SystemClock_Config(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  /* USER CODE BEGIN MX_GPIO_Init_1 */
-
-  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
@@ -314,9 +371,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-
-  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -337,7 +391,8 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-#ifdef USE_FULL_ASSERT
+
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -354,17 +409,19 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif /* USE_FULL_ASSERT */
 
+
 ```
 
 ## Output screen shots of serial port utility   :
- <img width="1037" height="531" alt="img1" src="https://github.com/user-attachments/assets/e9fc62b8-a821-4f70-8949-f5f3413c2a2e" />
+ 
+![WhatsApp Image 2025-10-24 at 09 12 39_46b413fd](https://github.com/user-attachments/assets/5c00c9e8-5fb1-419c-bf6d-e4ccc646251a)
 
  
  ## Circuit board :
- ![WhatsApp Image 2025-09-29 at 08 19 59_f7c9186a](https://github.com/user-attachments/assets/9fcf0a97-9b16-40a9-947b-7cd8f5b691c5)
+![WhatsApp Image 2025-10-24 at 09 11 35_98c31966](https://github.com/user-attachments/assets/205e452b-f41d-4e0d-9451-a12014751d45)
 
- ![WhatsApp Image 2025-09-29 at 08 20 00_40d80470](https://github.com/user-attachments/assets/343ea79b-acce-4415-b6a9-7e20cfe6d2a0)
 
- 
+ ![WhatsApp Image 2025-10-24 at 09 11 35_33c1b4ef](https://github.com/user-attachments/assets/747b441b-fe41-4b34-9e3a-a62fa3876c5c)
+
 ## Result :
 Interfacing a  IR SENSOR and interrupt is generated using external interrupt mode , visualized on serial port 
